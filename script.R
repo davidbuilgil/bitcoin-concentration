@@ -2,7 +2,7 @@
 #
 # Offending concentration on the internet
 #
-# D Buil-Gil, P SaldaÃ±a-Taboada, J Aldridge
+# Buil-Gil, Saldaña-Taboada
 #
 ################################
 
