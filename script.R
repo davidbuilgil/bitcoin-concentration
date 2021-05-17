@@ -2,7 +2,7 @@
 #
 # Offending concentration on the internet
 #
-# Buil-Gil, Saldaña-Taboada
+# XXX, XXX
 #
 ################################
 
