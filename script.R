@@ -109,17 +109,6 @@ Gini(accounts$count) # print Gini index
 library(lorenzgini)
 gini(accounts$count)
 
-#print Lorenz curve
-plot(Lc(accounts$count), # plot Lorenz curve
-     main = "Lorenz curve of cybercrime reports by Bitcoin address",
-     xlab = "Cumulative share of addresses from lowest to highest reports",
-     ylab = "Cumulative share of reports", col = "darkred", lwd = 2, lty = 2)
-legend(0.01, 0.99,
-       c("Bitcoin-related cybercrime", "1:1 diagonal"),
-       lty = c(2, 1),
-       lwd = c(2, 1),
-       col = c("darkred", "black"))
-
 #print Lorenz curve amb compare with traditional crimes (as in Martinez et al)
 Lorenz_cyber <- Lc(accounts$count, 
                    n = rep(1,length(accounts$count)), 
@@ -132,15 +121,18 @@ plot(Lorenz_cyber,
      xlab = "Cumulative share of offenders/Bitcoin addresses from lowest to highest reports",
      ylab = "Cumulative share of crimes")
 traditional <- exp(((0:100) + 13.761) / 23.914)
-Lorenz_darknet <- Lc(traditional, 
+Lorenz_traditional <- Lc(traditional, 
                      n = rep(1,length(traditional)), 
                      plot = F)
-lines(Lorenz_darknet, lty = 3, lwd = 2, col = "grey34")
+lines(Lorenz_traditional, lty = 3, lwd = 2, col = "grey34")
+Gini(accounts$count)
+Gini(traditional)
 legend(0.01, 0.99,
-       c("Bitcoin-related cybercrime", "Traditional crime", "1:1 diagonal"),
+       c("Bitcoin-related cybercrime (G = 0.64)", "Traditional crime (G = 0.56)", "1:1 diagonal"),
        lty = c(2, 3, 1),
        lwd = c(2, 2, 1),
-       col = c("black", "grey34", "black"))
+       col = c("black", "grey34", "black"),
+       bty = "n")
 
 #recode names of crime types
 crimes <- crimes %>%
@@ -206,6 +198,19 @@ Lorenz_sextorsion <- Lc(accounts_types$sextorsion[!is.na(accounts_types$sextorsi
                         n = rep(1,length(accounts_types$sextorsion[!is.na(accounts_types$sextorsion)])), 
                         plot = F)
 
+#obtain Gini indices
+Gini(accounts_types$ransomware)
+Gini(accounts_types$darknet)
+Gini(accounts_types$tumblr)
+Gini(accounts_types$blackmail)
+Gini(accounts_types$sextorsion)
+#try also with generalised Gini
+gini(accounts_types$ransomware[!is.na(accounts_types$ransomware)])
+gini(accounts_types$darknet[!is.na(accounts_types$darknet)])
+gini(accounts_types$tumblr[!is.na(accounts_types$tumblr)])
+gini(accounts_types$blackmail[!is.na(accounts_types$blackmail)])
+gini(accounts_types$sextorsion[!is.na(accounts_types$sextorsion)])
+
 #plot all
 plot(Lorenz_ransom,
      col = "black",
@@ -219,24 +224,12 @@ lines(Lorenz_tumblr, lty = 3, lwd = 2, col = "grey21")
 lines(Lorenz_blackmail, lty = 4, lwd = 2, col = "grey34")
 lines(Lorenz_sextorsion, lty = 5, lwd = 2, col = "grey41")
 legend(0.01, 0.99,
-       c("Ransomware", "Darknet market", "Bitcoin tumbler",
-         "Blackmail", "Sextorsion", "1:1 diagonal"),
+       c("Ransomware (G = 0.55)", "Darknet market (G = 0.19)", "Bitcoin tumbler (G = 0.18)",
+         "Blackmail (G = 0.61)", "Sextorsion (G = 0.52)", "1:1 diagonal"),
        lty = c(1, 2, 3, 4, 5, 1),
        lwd = c(2, 2, 2, 2, 2, 1),
-       col = c("black", "grey6", "grey21", "grey34", "grey41", "black"))
-
-#obtain Gini indices
-Gini(accounts_types$ransomware)
-Gini(accounts_types$darknet)
-Gini(accounts_types$tumblr)
-Gini(accounts_types$blackmail)
-Gini(accounts_types$sextorsion)
-#try also with generalised Gini
-gini(accounts_types$ransomware[!is.na(accounts_types$ransomware)])
-gini(accounts_types$darknet[!is.na(accounts_types$darknet)])
-gini(accounts_types$tumblr[!is.na(accounts_types$tumblr)])
-gini(accounts_types$blackmail[!is.na(accounts_types$blackmail)])
-gini(accounts_types$sextorsion[!is.na(accounts_types$sextorsion)])
+       col = c("black", "grey6", "grey21", "grey34", "grey41", "black"),
+       bty = "n")
 
 #create ID variable in accounts
 accounts <- accounts %>%
@@ -377,6 +370,170 @@ accounts %>%
             countries.sd = format(round(sd(countries, na.rm = T),3),3),
             types.sd     = format(round(sd(types, na.rm = T),3),3))
 
+#calculate mean results and 95% CI by cumulative decile
+count_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  filter(decile.sum < 10) %>%
+  summarise(variable = "Reports",
+            mean = mean(count, na.rm = T),
+            LI   = t.test(count)$"conf.int"[1],
+            UI   = t.test(count)$"conf.int"[2])
+count_confint <- rbind(
+  count_confint,
+  c(10, "Reports", mean(accounts$count[accounts$decile.sum == 10]), mean(accounts$count[accounts$decile.sum == 10]), mean(accounts$count[accounts$decile.sum == 10]))
+  )
+total_tra_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  summarise(variable = "Total transactions",
+            mean      = mean(total_tra, na.rm = T),
+            LI   = t.test(total_tra)$"conf.int"[1],
+            UI   = t.test(total_tra)$"conf.int"[2])
+bits_rec_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  summarise(variable = "Bitcoins received",
+            mean     = mean(bits_rec, na.rm = T),
+            LI   = t.test(bits_rec)$"conf.int"[1],
+            UI   = t.test(bits_rec)$"conf.int"[2])
+bits_sent_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  summarise(variable = "Bitcoins sent",
+            mean     = mean(bits_sent, na.rm = T),
+            LI   = t.test(bits_sent)$"conf.int"[1],
+            UI   = t.test(bits_sent)$"conf.int"[2])
+balance_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  summarise(variable = "Final balance",
+            mean     = mean(balance, na.rm = T),
+            LI   = t.test(balance)$"conf.int"[1],
+            UI   = t.test(balance)$"conf.int"[2])
+time_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  filter(decile.sum < 10) %>%
+  summarise(variable = "Time active",
+            mean = mean(time, na.rm = T),
+            LI   = t.test(time)$"conf.int"[1],
+            UI   = t.test(time)$"conf.int"[2])
+time_confint <- rbind(
+  time_confint,
+  c(10, "Time active", mean(accounts$time[accounts$decile.sum == 10]), mean(accounts$time[accounts$decile.sum == 10]), mean(accounts$time[accounts$decile.sum == 10]))
+)
+countries_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  filter(decile.sum < 10) %>%
+  summarise(variable = "Countries targeted",
+            mean = mean(countries, na.rm = T),
+            LI   = t.test(countries)$"conf.int"[1],
+            UI   = t.test(countries)$"conf.int"[2])
+countries_confint <- rbind(
+  countries_confint,
+  c(10, "Countries targeted", mean(accounts$countries[accounts$decile.sum == 10]), mean(accounts$countries[accounts$decile.sum == 10]), mean(accounts$countries[accounts$decile.sum == 10]))
+)
+types_confint <- accounts %>%
+  group_by(decile.sum) %>%
+  filter(decile.sum < 10) %>%
+  summarise(variable = "Types of crimes",
+            mean = mean(types, na.rm = T),
+            LI   = t.test(types)$"conf.int"[1],
+            UI   = t.test(types)$"conf.int"[2])
+types_confint <- rbind(
+  types_confint,
+  c(10, "Types of crimes", mean(accounts$types[accounts$decile.sum == 10]), mean(accounts$types[accounts$decile.sum == 10]), mean(accounts$types[accounts$decile.sum == 10]))
+)
+accounts_confint <- rbind(
+  count_confint, total_tra_confint, bits_rec_confint, bits_sent_confint, 
+  balance_confint, time_confint, countries_confint, types_confint
+)
+accounts_confint <- accounts_confint %>%
+  mutate(mean = as.numeric(mean),
+         LI = as.numeric(LI),
+         LI = ifelse(LI < 0, 0, LI),
+         UI = as.numeric(UI),
+         num = as.numeric(decile.sum))
+
+#plot mean and CI by cumulative deciles
+gg_count <- accounts_confint %>% filter(variable == "Reports") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+                               x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('Deciles from most to \n least reported addresses') +
+  ggtitle("Reports*") +
+  theme_bw()
+gg_total_tra <- accounts_confint %>% filter(variable == "Total transactions") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('') +
+  ggtitle("Total transactions**") +
+  theme_bw() +
+  theme(axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        plot.margin = unit(c(0.18, 0.18, 0.18, -0.4), "cm"))
+gg_bits_rec <- accounts_confint %>% filter(variable == "Bitcoins received") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('Deciles from most to \n least reported addresses') +
+  ggtitle("Bitcoins received**") +
+  theme_bw()
+gg_bits_sent <- accounts_confint %>% filter(variable == "Bitcoins sent") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('') +
+  ggtitle("Bitcoins sent**") +
+  theme_bw() +
+  theme(axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        plot.margin = unit(c(0.18, 0.18, 0.18, -0.4), "cm"))
+gg_balance <- accounts_confint %>% filter(variable == "Final balance") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('Deciles from most to \n least reported addresses') +
+  ggtitle("Final balance**") +
+  theme_bw()
+gg_time <- accounts_confint %>% filter(variable == "Time active") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('') +
+  ggtitle("Time active*") +
+  theme_bw() +
+  theme(axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        plot.margin = unit(c(0.18, 0.18, 0.18, -0.4), "cm"))
+gg_countries <- accounts_confint %>% filter(variable == "Countries targeted") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('Deciles from most to \n least reported addresses') +
+  ggtitle("Countries targeted*") +
+  theme_bw()
+gg_types <- accounts_confint %>% filter(variable == "Types of crimes") %>%
+  ggplot(aes(y = reorder(decile.sum, -num),
+             x = mean, xmin = LI, xmax = UI)) +
+  geom_pointrange() +
+  xlab('') +
+  ylab('') +
+  ggtitle("Types of crimes*") +
+  theme_bw() +
+  theme(axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        plot.margin = unit(c(0.18, 0.18, 0.18, -0.4), "cm"))
+
+#plot all together
+ggpubr::ggarrange(gg_count, gg_total_tra, gg_bits_rec, gg_bits_sent,
+          gg_balance, gg_time, gg_countries, gg_types,
+          ncol = 2, nrow = 4,
+          widths = c(1.05, 0.95))
+
 #obtain correlation matrix
 account_comp <- accounts %>%
   filter(complete.cases(.)) %>%
@@ -389,12 +546,15 @@ account_comp <- accounts %>%
          'Countries*' = countries,
          'Types of crime*' = types)
 cor <- Hmisc::rcorr(as.matrix(account_comp[,3:10]), type = "spearman")
-cor
+cor$r
 
 #obtain descriptive stats
 summary(account_comp)
 
 #visualise correlation matrix
-corrplot(cor$r, type = "lower", order = "hclust", tl.col = "black", tl.srt = 30,
-         cl.lim = c(0,1), tl.cex=0.8,
-         col = colorRampPalette(c("white", "grey", "black"))(100))
+#corrplot(cor$r, type = "lower", order = "hclust", tl.col = "black", tl.srt = 30,
+#         cl.lim = c(0,1), tl.cex=0.8,
+#         col = colorRampPalette(c("white", "grey", "black"))(100))
+corrplot(cor$r, method = 'circle', type = 'lower', tl.col = "black", tl.srt = 30,
+         addCoef.col ='black', number.cex = 0.8, order = 'AOE',
+         col = colorRampPalette(c("white", "yellow", "orange"))(100))
