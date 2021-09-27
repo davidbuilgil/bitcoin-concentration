@@ -2,7 +2,7 @@
 #
 # Offending concentration on the internet
 #
-# XXX, XXX
+# David Buil-Gil and Patricia Saldaña-Taboada
 #
 ################################
 
